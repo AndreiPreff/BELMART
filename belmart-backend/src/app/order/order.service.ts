@@ -8,36 +8,47 @@ import { EnumOrderStatus } from "@prisma/client";
 
 @Injectable()
 export class OrderService {
-  constructor(
-    private prismaService: PrismaService
-  ) {}
+  constructor(private prismaService: PrismaService) {}
+
+  private async checkProductAvailability(productId: number, quantity: number) {
+    const product = await this.prismaService.product.findUnique({
+      where: { id: productId },
+    });
+
+    if (!product || product.available_amount < quantity) {
+      throw new BadRequestException(`Product with id ${productId} is out of stock.`);
+    }
+  }
 
   async placeOrder(orderDto: OrderDto, userId: number) {
-    const total = orderDto.orderItems.reduce((acc, item) => {
-      return acc + item.price * item.quantity;
-    }, 0);
-
-    // Проверяем доступное количество продуктов перед созданием заказа
-    for (const item of orderDto.orderItems) {
+    const total = await Promise.all(orderDto.orderItems.map(async (item) => {
+      await this.checkProductAvailability(item.productId, item.quantity);
+  
       const product = await this.prismaService.product.findUnique({
         where: { id: item.productId },
       });
-
-      if (!product || product.available_amount < item.quantity) {
-        throw new BadRequestException(`Product with id ${item.productId} is out of stock.`);
-      }
-    }
-
+  
+      return product.price * item.quantity;
+    })).then(prices => prices.reduce((acc, price) => acc + price, 0));
+  
     // Создаем заказ с дефолтным статусом
     const createdOrder = await this.prismaService.order.create({
       data: {
-        status: orderDto.status,
+        status: EnumOrderStatus.IN_CART,
         totalAmount: total,
         orderItems: {
-          create: orderDto.orderItems.map((item) => ({
-            quantity: item.quantity,
-            price: item.price,
-            product: { connect: { id: item.productId } },
+          create: await Promise.all(orderDto.orderItems.map(async (item) => {
+            await this.checkProductAvailability(item.productId, item.quantity);
+  
+            const product = await this.prismaService.product.findUnique({
+              where: { id: item.productId },
+            });
+  
+            return {
+              quantity: item.quantity,
+              price: product.price,
+              product: { connect: { id: item.productId } },
+            };
           })),
         },
         user: { connect: { id: userId } },
@@ -46,10 +57,10 @@ export class OrderService {
         orderItems: true,
       },
     });
-
+  
     return createdOrder;
   }
-
+  
   async getAllOrders() {
     return this.prismaService.order.findMany({
       orderBy: { createdAt: 'desc' },
@@ -139,3 +150,89 @@ export class OrderService {
     return await this.prismaService.order.delete({where: {id: orderId}})
   }
 }
+
+
+
+
+
+// import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+// import { PrismaService } from "../../libs/prisma.service";
+// import { OrderDto } from "../../domain/order.dto";
+// import { returnProductObject } from "../product/return-product.object";
+// import { returnUserPartialObject } from "../user/return-user.object";
+// import { UpdateOrderStatusDto } from "../../domain/update-order-status.dto";
+// import { EnumOrderStatus } from "@prisma/client";
+
+// @Injectable()
+// export class OrderService {
+//   constructor(
+//     private prismaService: PrismaService
+//   ) {}
+
+//   async placeOrder(orderDto: OrderDto, userId: number) {
+//     const total = orderDto.orderItems.reduce((acc, item) => {
+//       return acc + item.price * item.quantity;
+//     }, 0);
+
+//     // Проверяем доступное количество продуктов перед созданием заказа
+//     for (const item of orderDto.orderItems) {
+//       const product = await this.prismaService.product.findUnique({
+//         where: { id: item.productId },
+//       });
+
+//       if (!product || product.available_amount < item.quantity) {
+//         throw new BadRequestException(`Product with id ${item.productId} is out of stock.`);
+//       }
+//     }
+
+    // Создаем заказ с дефолтным статусом
+
+    // const createdOrder = await this.prismaService.order.create({
+    //   data: {
+    //     status: orderDto.status,
+    //     totalAmount: total,
+    //     orderItems: {
+    //       create: orderDto.orderItems.map((item) => ({
+    //         quantity: item.quantity,
+    //         price: item.price,
+    //         product: { connect: { id: item.productId } },
+    //       })),
+    //     },
+    //     user: { connect: { id: userId } },
+    //   },
+    //   include: {
+    //     orderItems: true,
+    //   },
+    // });
+
+  //   const createdOrder = await this.prismaService.order.create({
+  //     data: {
+  //       status: orderDto.status,
+  //       totalAmount: total,
+  //       orderItems: {
+  //         create: await Promise.all(orderDto.orderItems.map(async (item) => {
+  //           const product = await this.prismaService.product.findUnique({
+  //             where: { id: item.productId },
+  //           });
+    
+  //           if (!product || product.available_amount < item.quantity) {
+  //             throw new BadRequestException(`Product with id ${item.productId} is out of stock.`);
+  //           }
+    
+  //           return {
+  //             quantity: item.quantity,
+  //             price: product.price,  // Use the price from the product
+  //             product: { connect: { id: item.productId } },
+  //           };
+  //         })),
+  //       },
+  //       user: { connect: { id: userId } },
+  //     },
+  //     include: {
+  //       orderItems: true,
+  //     },
+  //   });
+    
+
+  //   return createdOrder;
+  // }

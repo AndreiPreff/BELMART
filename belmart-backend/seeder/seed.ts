@@ -28,7 +28,7 @@ const createProducts = async (quantity: number) => {
 
 async function main() {
   console.log('Start seeding...')
-  await createProducts(33)
+  await createProducts(12)
 }
 
 main()
@@ -36,4 +36,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect()
   })
-

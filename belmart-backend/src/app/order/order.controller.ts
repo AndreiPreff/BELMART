@@ -5,31 +5,30 @@ import {
   Get,
   HttpCode,
   Param,
-  ParseIntPipe, Patch,
+  ParseIntPipe,
+  Patch,
   Post,
-  Put, UseGuards
-} from '@nestjs/common';
-import { OrderService } from './order.service';
-import {Auth} from "../auth/decorators/auth.decorator";
-import {GetUser} from "../auth/decorators/get-user.decorator";
-import {OrderDto} from "../../domain/order.dto";
-import {UpdateOrderStatusDto} from "../../domain/update-order-status.dto";
-import {AdminRoleGuard} from "../../libs/security/guards/admin-role.guard";
-import {JwtAuthGuard} from "../../libs/security/guards/jwt-auth.guard"
-import {ApiTags} from "@nestjs/swagger";
+  Put,
+  UseGuards
+} from '@nestjs/common'
+import { OrderService } from './order.service'
+import { Auth } from '../auth/decorators/auth.decorator'
+import { GetUser } from '../auth/decorators/get-user.decorator'
+import { OrderDto } from '../../domain/order.dto'
+import { UpdateOrderStatusDto } from '../../domain/update-order-status.dto'
+import { AdminRoleGuard } from '../../libs/security/guards/admin-role.guard'
+import { JwtAuthGuard } from '../../libs/security/guards/jwt-auth.guard'
+import { ApiTags } from '@nestjs/swagger'
 
 @Controller('orders')
-@ApiTags("Orders")
+@ApiTags('Orders')
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}
 
   @Post()
   @HttpCode(200)
   @Auth()
-  placeOrder(
-    @Body() orderDto: OrderDto,
-    @GetUser('id') userId: number
-  ) {
+  placeOrder(@Body() orderDto: OrderDto, @GetUser('id') userId: number) {
     return this.orderService.placeOrder(orderDto, userId)
   }
 
@@ -41,9 +40,7 @@ export class OrderController {
 
   @Get(':id')
   @UseGuards(JwtAuthGuard, AdminRoleGuard)
-  getOrderDetail(
-    @Param('id', ParseIntPipe) orderId: number
-  ) {
+  getOrderDetail(@Param('id', ParseIntPipe) orderId: number) {
     return this.orderService.getOrderDetail(orderId)
   }
 
@@ -82,9 +79,7 @@ export class OrderController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, AdminRoleGuard)
-  deleteOrder(
-    @Param('id', ParseIntPipe) orderId: number
-  ) {
+  deleteOrder(@Param('id', ParseIntPipe) orderId: number) {
     return this.orderService.deleteOrder(orderId)
   }
 }
